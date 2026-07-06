@@ -1,25 +1,18 @@
-name: Build APK
+[app]
+title = Cofre
+package.name = cofre
+package.domain = org.example
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas
 
-jobs:
-  build:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Baixar o codigo
-        uses: actions/checkout@v4
+version = 0.1
 
-      - name: Compilar APK (imagem oficial do Kivy)
-        run: |
-          docker run --rm -v "$PWD":/home/user/hostcwd kivy/buildozer:latest bash -c "pip install --upgrade buildozer && android debug"
+requirements = python3,kivy
 
-      - name: Disponibilizar o APK para download
-        uses: actions/upload-artifact@v4
-        with:
-          name: meu-cofre-apk
-          path: bin/*.apk
+orientation = portrait
+fullscreen = 0
 
-          
+[buildozer]
+log_level = 2
+warn_on_root = 1
