@@ -1,4 +1,6 @@
 [app]
+...
+android.api = 33
 title = Cofre
 package.name = cofre
 package.domain = org.example
