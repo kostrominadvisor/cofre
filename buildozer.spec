@@ -1,24 +1,25 @@
-[app]
-title = Meu Cofre
-package.name = meucofre
-package.domain = org.meucofre
+name: Build APK
 
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
 
-version = 0.1
-requirements = python3,kivy==2.4.0,kivymd==1.2.0,requests,beautifulsoup4,pillow,certifi,chardet,idna,urllib3,soupsieve
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
 
-orientation = portrait
-fullscreen = 0
+      - name: Compilar APK (imagem oficial do Kivy)
+        run: |
+          docker run --rm -v "$PWD":/home/user/hostcwd kivy/buildozer:latest bash -c "pip install --upgrade buildozer && android debug"
 
-android.permissions = INTERNET
-android.api = 33
-android.minapi = 24
-android.ndk = 25b
-android.accept_sdk_license = True
-android.archs = arm64-v8a
+      - name: Disponibilizar o APK para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: meu-cofre-apk
+          path: bin/*.apk
 
-[buildozer]
-log_level = 2
-warn_on_root = 1
+          
