@@ -1,101 +1,101 @@
-1| name: Build APK
-2| 
-3| on:
-4|   workflow_dispatch:
-5|   push:
-6|     branches: [ main ]
-7| 
-8| jobs:
-9|   build:
-10|     runs-on: ubuntu-22.04
-11|     steps:
-12|       - name: Baixar o codigo
-13|         uses: actions/checkout@v4
-14| 
-15|       - name: Restaurar cache do Android SDK
-16|         uses: actions/cache@v4
-17|         with:
-18|           path: .buildozer/android/platform/android-sdk
-19|           key: ${{ runner.os }}-android-sdk-33-${{ hashFiles('**/buildozer.spec') }}
-20|           restore-keys: |
-21|             ${{ runner.os }}-android-sdk-33-
-22|             ${{ runner.os }}-android-sdk-
-23| 
-24|       - name: Compilar APK (imagem oficial do Kivy)
-25|         run: |
-26|           docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/home/user/hostcwd --entrypoint /bin/bash kivy/buildozer:latest -lc '
-27|             set -euo pipefail
-28| 
-29|             # Diretório SDK dentro do workspace (para cache)
-30|             SDK_ROOT=/home/user/hostcwd/.buildozer/android/platform/android-sdk
-31|             mkdir -p "$SDK_ROOT"
-32| 
-33|             # Garantir que unzip e curl estão disponíveis (algumas imagens podem não ter)
-34|             if ! command -v unzip >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
-35|               echo "Instalando dependências (unzip, curl) dentro do container..."
-36|               apt-get update -y >/dev/null || true
-37|               apt-get install -y unzip curl >/dev/null || true
-38|             fi
-39| 
-40|             # Tentar localizar sdkmanager em locais comuns
-41|             if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
-42|               SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-43|             elif [ -x "$SDK_ROOT/cmdline-tools/tools/bin/sdkmanager" ]; then
-44|               SDKMANAGER="$SDK_ROOT/cmdline-tools/tools/bin/sdkmanager"
-45|             else
-46|               SDKMANAGER=""
-47|             fi
-48| 
-49|             # Se não houver sdkmanager, baixar command-line tools e instalar no SDK_ROOT
-50|             if [ -z "$SDKMANAGER" ]; then
-51|               echo "Instalando Android command line tools..."
-52|               curl -sSL -o /tmp/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-53|               unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools
-54|               mkdir -p "$SDK_ROOT/cmdline-tools/latest"
-55|               # mover conteúdo - lidar com variações na estrutura do zip
-56|               if [ -d /tmp/cmdline-tools/cmdline-tools ]; then
-57|                 mv /tmp/cmdline-tools/cmdline-tools/* "$SDK_ROOT/cmdline-tools/latest/" || true
-58|               else
-59|                 mv /tmp/cmdline-tools/* "$SDK_ROOT/cmdline-tools/latest/" || true
-60|               fi
-61|               SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-62|             fi
-63| 
-64|             # Assegurar que SDKMANAGER é executável
-65|             if [ ! -x "$SDKMANAGER" ]; then
-66|               chmod +x "$SDKMANAGER" || true
-67|             fi
-68| 
-69|             # Instalar/garantir componentes necessários (ajuste as versões se seu buildozer.spec exigir outra api/build-tools)
-70|             echo "Instalando componentes SDK (platform-tools, build-tools;33.0.2, platforms;android-33)..."
-71|             yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platform-tools" "build-tools;33.0.2" "platforms;android-33" || true
-72| 
-73|             # Aceitar licenças (não-interativo)
-74|             yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses || true
-75| 
-76|             # Ir para diretório do projeto
-77|             cd /home/user/hostcwd
-78| 
-79|             # Executar buildozer (ajuste o alvo se necessário)
-80|             echo "Iniciando buildozer..."
-81|             # Evitar prompt interativo caso algo ainda detecte root
-82|             yes | buildozer android debug || (echo "buildozer falhou — ver logs acima" && exit 1)
-83|           '
-84| 
-85|       - name: Garantir permissões do cache Android SDK
-86|         if: always()
-87|         run: |
-88|           # Se o cache foi criado pelo container como root, ajeitamos dono para o runner
-89|           chown -R "$(id -u):$(id -g)" .buildozer/android/platform/android-sdk || true
-90| 
-91|       - name: Salvar cache do Android SDK
-92|         uses: actions/cache@v4
-93|         with:
-94|           path: .buildozer/android/platform/android-sdk
-95|           key: ${{ runner.os }}-android-sdk-33-${{ hashFiles('**/buildozer.spec') }}
-96| 
-97|       - name: Disponibilizar o APK para download
-98|         uses: actions/upload-artifact@v4
-99|         with:
-100|           name: meu-cofre-apk
-101|           path: bin/*.apk
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Restaurar cache do Android SDK
+        uses: actions/cache@v4
+        with:
+          path: .buildozer/android/platform/android-sdk
+          key: ${{ runner.os }}-android-sdk-33-${{ hashFiles('**/buildozer.spec') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-33-
+            ${{ runner.os }}-android-sdk-
+
+      - name: Compilar APK (imagem oficial do Kivy)
+        run: |
+          docker run --rm -v "$PWD":/home/user/hostcwd -w /home/user/hostcwd --entrypoint /bin/bash kivy/buildozer:latest -lc '
+            set -euo pipefail
+
+            # Diretório SDK dentro do workspace (para cache)
+            SDK_ROOT=/home/user/hostcwd/.buildozer/android/platform/android-sdk
+            mkdir -p "$SDK_ROOT"
+
+            # Garantir que unzip e curl estão disponíveis (algumas imagens podem não ter)
+            if ! command -v unzip >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
+              echo "Instalando dependências (unzip, curl) dentro do container..."
+              apt-get update -y >/dev/null || true
+              apt-get install -y unzip curl >/dev/null || true
+            fi
+
+            # Tentar localizar sdkmanager em locais comuns
+            if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+              SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+            elif [ -x "$SDK_ROOT/cmdline-tools/tools/bin/sdkmanager" ]; then
+              SDKMANAGER="$SDK_ROOT/cmdline-tools/tools/bin/sdkmanager"
+            else
+              SDKMANAGER=""
+            fi
+
+            # Se não houver sdkmanager, baixar command-line tools e instalar no SDK_ROOT
+            if [ -z "$SDKMANAGER" ]; then
+              echo "Instalando Android command line tools..."
+              curl -sSL -o /tmp/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+              unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools
+              mkdir -p "$SDK_ROOT/cmdline-tools/latest"
+              # mover conteúdo - lidar com variações na estrutura do zip
+              if [ -d /tmp/cmdline-tools/cmdline-tools ]; then
+                mv /tmp/cmdline-tools/cmdline-tools/* "$SDK_ROOT/cmdline-tools/latest/" || true
+              else
+                mv /tmp/cmdline-tools/* "$SDK_ROOT/cmdline-tools/latest/" || true
+              fi
+              SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+            fi
+
+            # Assegurar que SDKMANAGER é executável
+            if [ ! -x "$SDKMANAGER" ]; then
+              chmod +x "$SDKMANAGER" || true
+            fi
+
+            # Instalar/garantir componentes necessários (ajuste as versões se seu buildozer.spec exigir outra api/build-tools)
+            echo "Instalando componentes SDK (platform-tools, build-tools;33.0.2, platforms;android-33)..."
+            yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platform-tools" "build-tools;33.0.2" "platforms;android-33" || true
+
+            # Aceitar licenças (não-interativo)
+            yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses || true
+
+            # Ir para diretório do projeto
+            cd /home/user/hostcwd
+
+            # Executar buildozer (ajuste o alvo se necessário)
+            echo "Iniciando buildozer..."
+            # Evitar prompt interativo caso algo ainda detecte root
+            yes | buildozer android debug || (echo "buildozer falhou — ver logs acima" && exit 1)
+          '
+
+      - name: Garantir permissões do cache Android SDK
+        if: always()
+        run: |
+          # Se o cache foi criado pelo container como root, ajeitamos dono para o runner
+          chown -R "$(id -u):$(id -g)" .buildozer/android/platform/android-sdk || true
+
+      - name: Salvar cache do Android SDK
+        uses: actions/cache@v4
+        with:
+          path: .buildozer/android/platform/android-sdk
+          key: ${{ runner.os }}-android-sdk-33-${{ hashFiles('**/buildozer.spec') }}
+
+      - name: Disponibilizar o APK para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: meu-cofre-apk
+          path: bin/*.apk
