@@ -8,8 +8,6 @@ source.include_exts = py,png,jpg,kv,atlas
 
 version = 0.1
 requirements = python3,kivy==2.3.0,kivymd==1.2.0,requests,beautifulsoup4,pillow,certifi,chardet,idna,urllib3,soupsieve
-p4a.branch = develop
-cython = 0.29.36
 
 orientation = portrait
 fullscreen = 0
